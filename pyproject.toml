@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-janus"
+description = "ComfyUI nodes for Janus"
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["git+https://github.com/deepseek-ai/Janus.git"]
+
+[project.urls]
+Repository = "https://github.com/yanhuifair/comfyui-janus"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "fffffair"
+DisplayName = "comfyui-janus"
+Icon = ""
