@@ -45,7 +45,7 @@ ComfyUI 的 Janus Pro 节点
 
 进入插件目录
 
-<code>cd /comfyui-janus</code>
+<code>cd comfyui-janus</code>
 
 安装依赖文件
 
