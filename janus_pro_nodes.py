@@ -2,9 +2,20 @@ import os
 import torch
 import numpy as np
 from PIL import Image
-from transformers import AutoModelForCausalLM
-from janus.models import MultiModalityCausalLM, VLChatProcessor
-from janus.utils.io import load_pil_images
+from huggingface_hub import snapshot_download
+
+try:
+    from janus.models import MultiModalityCausalLM, VLChatProcessor
+    from transformers import AutoModelForCausalLM
+except ImportError:
+    raise ImportError("Please install Janus using 'pip install -r requirements.txt'")
+
+device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+try:
+    dtype = torch.bfloat16
+    torch.zeros(1, dtype=dtype, device=device)
+except RuntimeError:
+    dtype = torch.float16
 
 
 class JanusProModelLoaderNode:
@@ -22,16 +33,17 @@ class JanusProModelLoaderNode:
     RETURN_TYPES = ("vl_gpt", "vl_chat_processor")
     RETURN_NAMES = ("vl_gpt", "vl_chat_processor")
     FUNCTION = "node_function"
-    CATEGORY = "Fair/deepseek/JanusPro"
+    CATEGORY = "Fair/deepseek"
 
     def node_function(self, model_name):
+
         comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         model_dir = os.path.join(comfy_path, "models", "deepseek-ai", os.path.basename(model_name))
 
         vl_chat_processor = VLChatProcessor.from_pretrained(model_dir)
 
         vl_gpt = AutoModelForCausalLM.from_pretrained(model_dir, trust_remote_code=True)
-        vl_gpt = vl_gpt.to(torch.bfloat16).cuda().eval()
+        vl_gpt = vl_gpt.to(dtype).to(device).eval()
 
         return (vl_gpt, vl_chat_processor)
 
@@ -55,7 +67,7 @@ class JanusProMultimodalUnderstandingNode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
     FUNCTION = "understanding_image"
-    CATEGORY = "Fair/deepseek/JanusPro"
+    CATEGORY = "Fair/deepseek"
 
     def understanding(self, vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens):
         image = (torch.clamp(image, 0, 1) * 255).cpu().numpy().astype(np.uint8)
@@ -115,7 +127,7 @@ class JanusProMultimodalUnderstandingNode:
         return (answers,)
 
     @classmethod
-    def IS_CHANGED(cls, seed):
+    def IS_CHANGED(cls, seed, **kwargs):
         return seed
 
 
@@ -140,7 +152,7 @@ class JanusProImageGenerationNode:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("images",)
     FUNCTION = "node_function"
-    CATEGORY = "Fair/deepseek/JanusPro"
+    CATEGORY = "Fair/deepseek"
 
     def generate(
         self,
@@ -157,7 +169,7 @@ class JanusProImageGenerationNode:
         input_ids = vl_chat_processor.tokenizer.encode(prompt)
         input_ids = torch.LongTensor(input_ids)
 
-        tokens = torch.zeros((parallel_size * 2, len(input_ids)), dtype=torch.int).cuda()
+        tokens = torch.zeros((parallel_size * 2, len(input_ids)), dtype=torch.int).to(device)
         for i in range(parallel_size * 2):
             tokens[i, :] = input_ids
             if i % 2 != 0:
@@ -165,7 +177,7 @@ class JanusProImageGenerationNode:
 
         inputs_embeds = vl_gpt.language_model.get_input_embeddings()(tokens)
 
-        generated_tokens = torch.zeros((parallel_size, image_token_num_per_image), dtype=torch.int).cuda()
+        generated_tokens = torch.zeros((parallel_size, image_token_num_per_image), dtype=torch.int).to(device)
 
         for i in range(image_token_num_per_image):
             outputs = vl_gpt.language_model.model(inputs_embeds=inputs_embeds, use_cache=True, past_key_values=outputs.past_key_values if i != 0 else None)
@@ -197,8 +209,8 @@ class JanusProImageGenerationNode:
         vl_gpt,
         vl_chat_processor,
         prompt,
-        parallel_size,
         temperature,
+        parallel_size,
         cfg_weight,
         image_token_num_per_image,
         img_size,
@@ -222,5 +234,5 @@ class JanusProImageGenerationNode:
         )
 
     @classmethod
-    def IS_CHANGED(cls, seed):
+    def IS_CHANGED(cls, seed, **kwargs):
         return seed
