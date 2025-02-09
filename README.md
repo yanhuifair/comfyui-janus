@@ -77,7 +77,7 @@ ComfyUI 的 Janus Pro 节点
 
 🤖 人工智能 研究者
 
-谢谢你的关注  😘
+# 谢谢你的关注  😘
 
 ![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/realFairyan)
 
@@ -87,5 +87,4 @@ Bilibili: [FFFFFFFFair](https://space.bilibili.com/8191887)
 
 小红书: 587872489
 
-# 
-如果这个项目对你有帮助，请给它一个 Star ⭐️
+# 如果这个项目对你有帮助，请给它一个 Star ⭐️
