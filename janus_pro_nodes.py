@@ -26,7 +26,7 @@ class JanusProModelLoaderNode:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "model_name": (["deepseek-ai/Janus-Pro-1B", "deepseek-ai/Janus-Pro-7B"],),
+                "model_name": (["deepseek-ai/Janus-Pro-1B", "deepseek-ai/Janus-Pro-7B"], {"default": "deepseek-ai/Janus-Pro-7B"}),
             },
         }
 
@@ -36,9 +36,13 @@ class JanusProModelLoaderNode:
     CATEGORY = "Fair/deepseek"
 
     def node_function(self, model_name):
-
         comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         model_dir = os.path.join(comfy_path, "models", "deepseek-ai", os.path.basename(model_name))
+
+        if not os.path.exists(model_dir) or not os.listdir(model_dir):
+            print(f"Downloading model {model_name} to {model_dir}")
+            snapshot_download(repo_id=model_name, local_dir=model_dir)
+            print(f"Model {model_name} downloaded successfully to {model_dir}")
 
         vl_chat_processor = VLChatProcessor.from_pretrained(model_dir)
 
@@ -57,8 +61,8 @@ class JanusProMultimodalUnderstandingNode:
                 "vl_chat_processor": ("vl_chat_processor",),
                 "image": ("IMAGE",),
                 "question": ("STRING", {"multiline": True, "default": "Describe this image in detail."}),
-                "temperature": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0}),
-                "top_p": ("FLOAT", {"default": 0.95, "min": 0.0, "max": 1.0}),
+                "temperature": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "tooltip": " higher values increase randomness"}),
+                "top_p": ("FLOAT", {"default": 0.95, "min": 0.0, "max": 1.0, "tooltip": "higher values increase diversity"}),
                 "max_new_tokens": ("INT", {"default": 512, "min": 1, "max": 2048}),
                 "seed": ("INT", {"default": 666666666666666, "min": 0, "max": 0xFFFFFFFFFFFFFFFF}),
             },
@@ -66,10 +70,10 @@ class JanusProMultimodalUnderstandingNode:
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
-    FUNCTION = "understanding_image"
+    FUNCTION = "node_function"
     CATEGORY = "Fair/deepseek"
 
-    def understanding(self, vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens):
+    def understanding_image(self, vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens):
         image = (torch.clamp(image, 0, 1) * 255).cpu().numpy().astype(np.uint8)
         pil_image = Image.fromarray(image, mode="RGB")
 
@@ -106,7 +110,7 @@ class JanusProMultimodalUnderstandingNode:
         print(f"{prepare_inputs['sft_format'][0]}", answer)
         return answer
 
-    def understanding_image(self, vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens, seed):
+    def node_function(self, vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens, seed):
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         answers = []
@@ -116,12 +120,12 @@ class JanusProMultimodalUnderstandingNode:
             for i in tensors:
                 image = i
 
-                answer = self.understanding(vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens)
+                answer = self.understanding_image(vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens)
                 answers.append(answer)
 
         # [Channel, Height, Width]
         else:
-            answer = self.understanding(vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens)
+            answer = self.understanding_image(vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens)
             answers.append(answer)
 
         return (answers,)
