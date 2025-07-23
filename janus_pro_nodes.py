@@ -108,7 +108,6 @@ class JanusProMultimodalUnderstandingNode:
 
     def understanding_image(self, vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens, seed):
         torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
         answers = []
         # [Batch, Channel, Height, Width]
         if len(image.shape) == 4:
@@ -219,7 +218,6 @@ class JanusProImageGenerationNode:
     ):
 
         torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
 
         return self.generate(
             vl_gpt,
