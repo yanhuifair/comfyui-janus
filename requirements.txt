@@ -1,1 +1,3 @@
 git+https://github.com/deepseek-ai/Janus.git
+huggingface_hub
+huggingface_hub[hf_xet]
