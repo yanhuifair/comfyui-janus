@@ -59,34 +59,37 @@ class JanusProMultimodalUnderstandingNode:
             "required": {
                 "vl_gpt": ("vl_gpt",),
                 "vl_chat_processor": ("vl_chat_processor",),
-                "image": ("IMAGE",),
+                "images": ("IMAGE",),
                 "question": ("STRING", {"multiline": True, "default": "Describe this image in detail."}),
                 "temperature": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "tooltip": " higher values increase randomness"}),
                 "top_p": ("FLOAT", {"default": 0.95, "min": 0.0, "max": 1.0, "tooltip": "higher values increase diversity"}),
                 "max_new_tokens": ("INT", {"default": 512, "min": 1, "max": 2048}),
-                "seed": ("INT", {"default": 666666666666666, "min": 0, "max": 0xFFFFFFFFFFFFFFFF}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFFFFFFFFFF}),
             },
         }
 
     RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("text",)
+    RETURN_NAMES = ("answer",)
     FUNCTION = "node_function"
     CATEGORY = "Fair/deepseek"
 
-    def understanding_image(self, vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens):
-        image = (torch.clamp(image, 0, 1) * 255).cpu().numpy().astype(np.uint8)
-        pil_image = Image.fromarray(image, mode="RGB")
+    def understanding_image(self, vl_gpt, vl_chat_processor, images, question, temperature, top_p, max_new_tokens):
+        pil_images = []
+        for image in images:
+            image = (torch.clamp(image, 0, 1) * 255).cpu().numpy().astype(np.uint8)
+            pil_image = Image.fromarray(image, mode="RGB")
+            pil_images.append(pil_image)
 
         conversation = [
             {
                 "role": "<|User|>",
                 "content": f"<image_placeholder>\n{question}",
-                "images": [pil_image],
+                "images": pil_images,
             },
             {"role": "<|Assistant|>", "content": ""},
         ]
 
-        prepare_inputs = vl_chat_processor(conversations=conversation, images=[pil_image], force_batchify=True).to(vl_gpt.device)
+        prepare_inputs = vl_chat_processor(conversations=conversation, images=pil_images, force_batchify=True).to(vl_gpt.device)
 
         # run image encoder to get the image embeddings
         inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
@@ -107,27 +110,14 @@ class JanusProMultimodalUnderstandingNode:
         )
 
         answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
-        print(f"{prepare_inputs['sft_format'][0]}", answer)
         return answer
 
-    def node_function(self, vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens, seed):
+    def node_function(self, vl_gpt, vl_chat_processor, images, question, temperature, top_p, max_new_tokens, seed):
         torch.manual_seed(seed)
-        answers = []
-        # [Batch, Channel, Height, Width]
-        if len(image.shape) == 4:
-            tensors = torch.unbind(image, dim=0)
-            for i in tensors:
-                image = i
 
-                answer = self.understanding_image(vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens)
-                answers.append(answer)
-
-        # [Channel, Height, Width]
-        else:
-            answer = self.understanding_image(vl_gpt, vl_chat_processor, image, question, temperature, top_p, max_new_tokens)
-            answers.append(answer)
-
-        return (answers,)
+        answer = self.understanding_image(vl_gpt, vl_chat_processor, images, question, temperature, top_p, max_new_tokens)
+        print(f"Janus Pro Multimodal Understanding Answer: \n{answer}")
+        return (answer,)
 
     @classmethod
     def IS_CHANGED(cls, seed, **kwargs):
@@ -218,7 +208,7 @@ class JanusProImageGenerationNode:
         image_token_num_per_image,
         img_size,
         patch_size,
-        seed=666666666666666,
+        seed=0,
     ):
 
         torch.manual_seed(seed)
