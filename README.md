@@ -51,27 +51,10 @@ ComfyUI 的 Janus Pro 节点
 
 <code>pip3 install -r requirements.txt</code>
 
-# 下载模型
-
-在你的 ComfyUI 的 models 目录下创建 deepseek-ai 文件夹
-
-从 Hugging Face 下载模型：
-
-[🤗Janus-Pro-1B](https://huggingface.co/deepseek-ai/Janus-Pro-1B)
-
-[🤗Janus-Pro-7B](https://huggingface.co/deepseek-ai/Janus-Pro-7B)
-
-![image](https://github.com/user-attachments/assets/ec5b92a7-723b-48dd-92ec-ce299a6b8d8e)
-
-
-把模型下载到 ComfyUI\models\deepseek-ai 目录下
-
-![image](https://github.com/user-attachments/assets/9cd52d98-7522-4503-8c82-322268d1f85f)
-
 
 # 关于我
 
-🎮 游戏开发者 技术美术 
+🎮 游戏开发者 技术美术
 
 🎛️ COMFYUI 开发者
 
